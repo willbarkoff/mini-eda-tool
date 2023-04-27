@@ -1,3 +1,4 @@
 grammar-diagram.html
 test.v
 __pycache__
+*.tree

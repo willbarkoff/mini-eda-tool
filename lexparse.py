@@ -19,7 +19,7 @@ def parselex(file):
     endmodule_keyword = pp.Keyword("endmodule")
     semi = ";"
 
-    varname = pp.Word(pp.alphanums)
+    varname = pp.Word(pp.alphanums+"_")
     vartype = pp.Keyword("wire") | pp.Keyword("logic")
 
     input_stmt = "input" + varname
@@ -63,13 +63,51 @@ def infix_to_prefix(infix):
     return [infix[1], infix[0], infix[2]]
 
 
+def get_block_for_operator(operator):
+    match operator:
+        case "&": return eda_tree.AND
+        case "|": return eda_tree.OR
+        case "^": return eda_tree.XOR
+        case "~": return eda_tree.NOT
+        case _: raise TypeError("Invalid operator", operator)
+
+
+def parse_operator(op, inputs):
+    if (type(op) is str):
+        print("h", op)
+        tree = eda_tree.Tree(eda_tree.INPUT, eda_tree.UNSPECIFIED_POS)
+        tree.add_child(op)
+        return tree
+
+    if (len(op) == 1):
+        if not (op.value in inputs):
+            raise TypeError("Assign statement funciton of",
+                            op.value, "which isn't an input.")
+        tree = eda_tree.Tree(eda_tree.INPUT, eda_tree.UNSPECIFIED_POS)
+        tree.add_child(op.value)
+        return tree
+
+    if (op[0].operator):
+        block = get_block_for_operator(op[0].operator)
+        tree = eda_tree.Tree(block, eda_tree.UNSPECIFIED_POS)
+        tree.add_child(parse_operator(op[1], inputs))
+        return tree
+
+    block = get_block_for_operator(op[1].operator)
+    tree = eda_tree.Tree(block, eda_tree.UNSPECIFIED_POS)
+    tree.add_child(parse_operator(op[0], inputs))
+    tree.add_child(parse_operator(op[2], inputs))
+    return tree
+
+
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: lexparse.py [verilog file]", file=sys.stderr)
+    if len(sys.argv) < 3:
+        print(
+            "Usage: lexparse.py [verilog file] [output file]", file=sys.stderr)
         sys.exit(1)
 
+    file = open(sys.argv[2], mode='wb')
     result = parselex(sys.argv[1])
-    print(result.dump())
 
     print("Parsing module", result.module_decl.name)
     inputs = []
@@ -78,7 +116,7 @@ if __name__ == "__main__":
         match param:
             case ['input', n]: inputs += n
             case ['output', t, n]: outputs += n
-            case _: raise TypeError("Invlaid parameter", param)
+            case _: raise TypeError("Invalid parameter", param)
 
     print("Module has inputs", inputs)
     print("Module has outputs", outputs)
@@ -87,7 +125,14 @@ if __name__ == "__main__":
         if (not (assign_stmt.varname in outputs)):
             raise NotImplemented("Not implemented: assign to non-output")
 
-        if (assign_stmt.expr[0][0].operator):
-            print('unary')
-        elif (assign_stmt.expr[0][0].value):
-            print("binary")
+        expr = assign_stmt.expr
+        tree = parse_operator(expr, inputs)
+
+        print(tree.simulate({
+            "a": True,
+            "b": False
+        }))
+
+        tree.dump(file)
+        file.close()
+        print("written to", sys.argv[2])

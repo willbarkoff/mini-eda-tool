@@ -1,5 +1,7 @@
 from enum import Enum
-import pickle
+import dill as pickle
+
+pickle.settings["recurse"] = True
 
 BlockType = Enum(
     'BlockType',
@@ -15,29 +17,37 @@ class Block:
         self.behavior = behavior
 
 
-INPUT = Block("Input", 1, id)
-OUTPUT = Block("Output", 1, id)
-WIRE = Block("-", 1, id)
-AND = Block("&", 2, lambda arr: arr[0] and arr[1])
-OR = Block("|", 2, lambda arr: arr[0] or arr[1])
-XOR = Block("^", 2, lambda arr: arr[0] != arr[1])
-NOT = Block("~", 1, lambda arr: not arr[1])
+INPUT = Block("Input", 1, lambda simdata, arr: simdata[arr[0]])
+OUTPUT = Block("Output", 1, lambda _, arr: arr[0])
+WIRE = Block("-", 1, lambda _, arr: arr[0])
+AND = Block("&", 2, lambda _, arr: arr[0] and arr[1])
+OR = Block("|", 2, lambda _, arr: arr[0] or arr[1])
+XOR = Block("^", 2, lambda _, arr: arr[0] != arr[1])
+NOT = Block("~", 1, lambda _, arr: not arr[0])
+
+
+class Position:
+    def __init__(self):
+        self.unspecified = True
+
+
+UNSPECIFIED_POS = Position()
 
 
 class Tree:
-    def __init__(self, block: Block, position: None):
+    def __init__(self, block: Block, position: Position):
         self.block = block
         self.position = None
         self.children = []
 
-    def __init__(self, file):
-        self = pickle.load(file)
+    # def __init__(self, file):
+    #     self = pickle.load(file)
 
     def children(self):
         return self.children
 
     def add_child(self, new_child):
-        self.children += new_child
+        self.children.append(new_child)
 
     def set_children(self, new_children):
         self.children = new_children
@@ -47,4 +57,9 @@ class Tree:
             raise TypeError("Incorrect child count.")
 
     def dump(self, file):
-        pickle.dump(self, file)
+        return pickle.dump(self, file)
+
+    def simulate(self, simdata):
+        if self.block.name == "Input":
+            return simdata[self.children[0]]
+        return self.block.behavior(simdata, [child.simulate(simdata) for child in self.children])
