@@ -35,8 +35,8 @@ logging.basicConfig(format='%(message)s',
 # First, we parse the standard cell library
 log_step("Parsing standard cell library")
 
-std_cells = technology.Technology(
-    args.standard_cells, dump_mermaid=args.mermaid)
+tech = technology.Technology(
+    args.standard_cells, dump_stdcell_mermaid=args.mermaid)
 logging.info(f"Success!")
 
 log_step("Parsing the verilog input")
@@ -55,13 +55,21 @@ logging.info(f"Success!")
 if args.mermaid:
     file = f"mermaid/{verilog_ast.name}-cannonicalized.mmd"
     logging.info(f"Writing file {file}")
-    verilog_ast.eda_tree.dump_mermaid(open(file, "w"))
+    cannonicalized.dump_mermaid(open(file, "w"))
 
 log_step("Simplifying logic")
 
-simplified = verilog_ast.eda_tree.simplify()
+simplified = cannonicalized.simplify()
 logging.info(f"Success!")
 if args.mermaid:
     file = f"mermaid/{verilog_ast.name}-simplified.mmd"
     logging.info(f"Writing file {file}")
-    verilog_ast.eda_tree.dump_mermaid(open(file, "w"))
+    simplified.dump_mermaid(open(file, "w"))
+
+log_step("Mapping technology")
+(mapped, price) = tech.map(simplified)
+logging.info(f"Success! Mapping price is {price}")
+if args.mermaid:
+    file = f"mermaid/{verilog_ast.name}-mapped.mmd"
+    logging.info(f"Writing file {file}")
+    mapped.dump_mermaid(open(file, "w"))

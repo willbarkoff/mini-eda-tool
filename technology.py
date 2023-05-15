@@ -5,18 +5,49 @@ import logging
 
 
 class StandardCell:
-    def __init__(self, name: str, tree: eda_tree.EDANode, dump_mermaid=False):
+    def __init__(self, name: str, tree: eda_tree.EDANode, inputs: list[str], price: int, dump_mermaid=False):
         self.name = name
-        self.tree = tree.cannonicalize().simplify()
+        self.inputs = inputs
+        self.price = price
+        self.behavior = eda_tree.NodeBehavior(name, len(inputs), tree.simulate)
 
         if dump_mermaid:
             file = f"mermaid/stdcell-{name}.mmd"
             logging.info(f"Writing file {file}")
+            tree.dump_mermaid(open(file, "w"))
+
+        logging.debug(f"Cannonicalizing {name}")
+        self.tree = tree.cannonicalize()
+
+        if dump_mermaid:
+            file = f"mermaid/stdcell-{name}-cannonical.mmd"
+            logging.info(f"Writing file {file}")
             self.tree.dump_mermaid(open(file, "w"))
+
+        logging.debug(f"Simplifying {name}")
+        self.tree = self.tree.simplify()
+
+        if dump_mermaid:
+            file = f"mermaid/stdcell-{name}-simplified.mmd"
+            logging.info(f"Writing file {file}")
+            self.tree.dump_mermaid(open(file, "w"))
+
+    def generateNode(self, children):
+        node = eda_tree.EDANode.with_children(
+            self.behavior, eda_tree.Position(), children)
+        node.set_type("stdcell")
+        return node
+
+    def match(self, other: eda_tree.EDANode) -> None | tuple[list[eda_tree.EDANode], int]:
+        result = other.match(self.tree)
+        if result == None:
+            return None
+
+        return (result, self.price)
 
 
 class Technology:
-    def __init__(self, json_file: str, dump_mermaid=False):
+    def __init__(self, json_file: str, dump_stdcell_mermaid=False):
         json_spec: str
         with open(json_file) as f:
             json_spec = json.load(f)
@@ -38,4 +69,32 @@ class Technology:
                 f"Matched stdcell {stdcell['name']} -> {self.verilog}:{spec.name}")
 
             self.cells.append(StandardCell(
-                stdcell["name"], spec.eda_tree, dump_mermaid=dump_mermaid))
+                stdcell["name"],
+                spec.eda_tree,
+                spec.inputs,
+                stdcell["price"],
+                dump_mermaid=dump_stdcell_mermaid))
+
+    # map(tree) covers tree with standard cells
+    def map(self, tree: eda_tree.EDANode) -> tuple[eda_tree.EDANode, int]:
+        if tree.behavior.name == "Input":
+            return (tree, 0)
+
+        min_cost_mapping = (None, -1)
+        for cell in self.cells:
+            logging.debug(f"Attempting to match {cell.name}")
+            child_result = cell.match(tree)
+            if child_result != None:
+                cost = child_result[1]
+                children: eda_tree.EDANode = []
+                for child in child_result[0]:
+                    (new_child, addtl_cost) = self.map(child)
+                    print(new_child)
+                    cost += addtl_cost
+                    children += [new_child]
+
+                if min_cost_mapping[1] == -1 or cost < min_cost_mapping[1]:
+                    min_cost_mapping = (cell.generateNode(children), cost)
+
+        assert (min_cost_mapping[0] != None)
+        return min_cost_mapping

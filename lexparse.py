@@ -88,7 +88,7 @@ def lexparse(file) -> list[VerilogModule]:
 
 
 # infix_to_prefix converts parser output in infix notation to parser output in prefix notation.
-def infix_to_prefix(infix):
+def infix_to_prefix(infix: list) -> list:
     if ("Operator" in infix[0]):
         return infix
     return [infix[1], infix[0], infix[2]]
@@ -103,8 +103,10 @@ def get_block_for_operator(operator: str) -> eda_tree.NodeBehavior:
         case "~": return eda_tree.NOT
         case _: raise TypeError("Invalid operator", operator)
 
+# parse_operator(op, inputs) returns an EDANode for a given operator and its inputs.
 
-def parse_operator(op, inputs):
+
+def parse_operator(op, inputs) -> eda_tree.EDANode:
     if (type(op) is str):
         tree = eda_tree.EDANode(eda_tree.INPUT, eda_tree.UNSPECIFIED_POS)
         tree.add_child(op)

@@ -5,15 +5,18 @@
     "cells": [
         {
             "name": "NAND",
-            "verilog_module": "nand"
+            "verilog_module": "nand",
+            "price": 1
         },
         {
             "name": "NOR",
-            "verilog_module": "nor"
+            "verilog_module": "nor",
+            "price": 2
         },
         {
             "name": "NOT",
-            "verilog_module": "not"
+            "verilog_module": "not",
+            "price": 2
         }
     ]
 }

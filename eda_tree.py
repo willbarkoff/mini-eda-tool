@@ -1,6 +1,8 @@
 from enum import Enum
+from typing import Self
 from io import TextIOWrapper
 from uuid import uuid4
+import logging
 
 BlockType = Enum(
     'BlockType',
@@ -57,10 +59,13 @@ class EDANode:
         self.technology_details = None
         self.children: list[EDANode] = []
         self.uuid = uuid4()
+        self.__type__ = "verilog"
 
-    def with_children(behavior: NodeBehavior, position: Position, children):
+    def with_children(behavior: NodeBehavior, position: Position, children: list):
         node = EDANode(behavior, position)
         node.children = children
+        if len(children) != 1:
+            children.sort(key=lambda child: child.behavior.name)
         return node
 
     def set_technology_details(self, technology_details):
@@ -71,9 +76,13 @@ class EDANode:
 
     def add_child(self, new_child):
         self.children.append(new_child)
+        if len(self.children) != 1:
+            self.children.sort(key=lambda child: child.behavior.name)
 
     def set_children(self, new_children):
         self.children = new_children
+        if len(self.children) != 1:
+            self.children.sort(key=lambda child: child.behavior.name)
 
     def check(self):
         if (len(self.children) != self.behavior.arg_count):
@@ -94,9 +103,17 @@ class EDANode:
 
         if (self.behavior.name == "Input" or self.behavior.name == "Output"):
             file.write(
-                f"\tnode{self.uuid.hex}[{self.behavior.name} {self.children[0]}]\n")
+                f"\tnode{self.uuid.hex}[/{self.behavior.name} {self.children[0]}\\]\n")
         else:
-            file.write(f"\tnode{self.uuid.hex}[\"{self.behavior.name}\"]\n")
+            if self.behavior.name == "Input":
+                file.write(
+                    f"\tnode{self.uuid.hex}[/\"{self.behavior.name}\"\\]\n")
+            elif self.__type__ == "verilog":
+                file.write(
+                    f"\tnode{self.uuid.hex}[\"{self.behavior.name}\"]\n")
+            elif self.__type__ == "stdcell":
+                file.write(
+                    f"\tnode{self.uuid.hex}{'{{'}\"{self.behavior.name}\"{'}}'}\n")
 
             for child in self.children:
                 child.__dump_mermaid__(file, visited_list + [self.uuid.hex])
@@ -125,49 +142,31 @@ class EDANode:
                                          self.position,
                                          [c.simplify() for c in self.children] if self.behavior.name != "Input" else self.children)
 
-    # def cannnonicalize_with_nand(self):
-    #     match self.behavior.name:
-    #         # TODO: Why can't I use INPUT_NAME and OUTPUT_NAME here?
-    #         case ("-" | "NAND" | "Input" | "Output"): return self
-    #         case "&":
-    #             newNode = EDANode(NAND, Position())
-    #             newChild = EDANode(NAND, Position())
-    #             newChild.children = [c.cannnonicalize_with_nand()
-    #                                  for c in self.children]
-    #             newNode.set_children(
-    #                 [newChild, newChild])
-    #             return newNode
-    #         case "|":
-    #             newNode = EDANode(NAND, Position())
-    #             input1 = EDANode(NAND, Position())
-    #             input2 = EDANode(NAND, Position())
-    #             self.children[0] = self.children[0].cannnonicalize_with_nand()
-    #             self.children[1] = self.children[1].cannnonicalize_with_nand()
-    #             input1.set_children([self.children[0], self.children[0]])
-    #             input2.set_children([self.children[1], self.children[1]])
-    #             newNode.set_children([input1, input2])
-    #             return newNode
-    #         case "~":
-    #             newNode = EDANode(NAND, Position())
-    #             newNode.set_children([c.cannnonicalize_with_nand()
-    #                                  for c in self.children])
-    #             return newNode
-    #         case "^":
-    #             firstNAND = EDANode(NAND, Position())
-    #             level2NAND1 = EDANode(NAND, Position())
-    #             level2NAND2 = EDANode(NAND, Position())
-    #             lastNand = EDANode(NAND, Position())
+    def set_type(self, type: str):
+        self.__type__ = type
 
-    #             cannonical_children = [c.cannnonicalize_with_nand()
-    #                                    for c in self.children]
+    # match(other) checks if other matches the pattern presented at the root of self. If it does, it returns the children replacement. If not, it returns None.
+    def match(self, other: Self, thing=0) -> None | list[Self]:
+        logging.debug(
+            f"Step {thing}: comparing {self.behavior.name} to {other.behavior.name}")
+        if other.behavior.name == "Input":
+            logging.debug(
+                f"Found input. Partial match.")
+            return [self]
 
-    #             lastNand.set_children(cannonical_children)
-    #             level2NAND1.set_children([cannonical_children[0], lastNand])
-    #             level2NAND2.set_children([cannonical_children[1], lastNand])
-    #             firstNAND.set_children([level2NAND1, level2NAND2])
-    #             return lastNand
+        if other.behavior.name != self.behavior.name:
+            logging.debug(
+                f"Mismatch {other.behavior.name} to {self.behavior.name}. No match.")
+            return None
 
-    # def technology_map(self, Technology):
-    #     pass
-    #     # tech = Technology()
-    #     # return tech.tech_map(self)
+        logging.debug(
+            f"Match {other.behavior.name} to {self.behavior.name}.")
+
+        results: list[Self] = []
+        for i in range(len(self.children)):
+            res = self.children[i].match(other.children[i], thing=thing + 1)
+            if res == None:
+                return None
+            results += res
+
+        return results
