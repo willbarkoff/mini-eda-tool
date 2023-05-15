@@ -1,0 +1,19 @@
+{
+    "name": "NAND NOR NOT Standard Cell Library",
+    "description": "This standard cell library contains descriptiosn for fake NAND, NOR, and NOT cells.",
+    "verilog": "./stdcells.v",
+    "cells": [
+        {
+            "name": "NAND",
+            "verilog_module": "nand"
+        },
+        {
+            "name": "NOR",
+            "verilog_module": "nor"
+        },
+        {
+            "name": "NOT",
+            "verilog_module": "not"
+        }
+    ]
+}
