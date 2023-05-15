@@ -89,7 +89,6 @@ class Technology:
                 children: eda_tree.EDANode = []
                 for child in child_result[0]:
                     (new_child, addtl_cost) = self.map(child)
-                    print(new_child)
                     cost += addtl_cost
                     children += [new_child]
 

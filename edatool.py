@@ -8,9 +8,11 @@ step = 1
 
 def log_step(name):
     global step
-    logging.debug("\n--------------------------------------------")
-    logging.debug(f"{step}. {name}")
-    logging.debug("--------------------------------------------")
+    logging.info(
+        "\n---------------------------------------------------------------")
+    logging.info(f"{step}. {name}")
+    logging.info(
+        "---------------------------------------------------------------")
     step += 1
 
 
@@ -73,3 +75,9 @@ if args.mermaid:
     file = f"mermaid/{verilog_ast.name}-mapped.mmd"
     logging.info(f"Writing file {file}")
     mapped.dump_mermaid(open(file, "w"))
+
+log_step("Placing standard cells")
+
+log_step("Placing wires & vias")
+
+log_step("GDS merge")
