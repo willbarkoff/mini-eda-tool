@@ -87,15 +87,18 @@ if args.mermaid:
 log_step("Placing standard cells")
 
 c = chip.Chip(args.width, args.height, verilog_ast.inputs, verilog_ast.outputs)
-c.add_tree(mapped)
+c.add_tree(mapped, tech)
 if args.mermaid:
     file = f"mermaid/chip-placement.png"
     logging.info(f"Writing file {file}")
     c.dump_image(file)
-c.dump_json("chip.json")
 
 log_step("Routing chip")
+c.route(mapped, tech)
 if args.mermaid:
     file = f"mermaid/chip-routed.png"
     logging.info(f"Writing file {file}")
     c.dump_image(file)
+
+logging.info(f"Writing file chip.jso")
+c.dump_json("chip.json")

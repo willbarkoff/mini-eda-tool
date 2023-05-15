@@ -6,17 +6,79 @@
         {
             "name": "NAND",
             "verilog_module": "nand",
-            "price": 1
+            "price": 1,
+            "pins": [
+                {
+                    "name": "a",
+                    "position": [
+                        1,
+                        1
+                    ]
+                },
+                {
+                    "name": "b",
+                    "position": [
+                        3,
+                        1
+                    ]
+                },
+                {
+                    "name": "z",
+                    "position": [
+                        3,
+                        6
+                    ]
+                }
+            ]
         },
         {
             "name": "NOR",
             "verilog_module": "nor",
-            "price": 2
+            "price": 2,
+            "pins": [
+                {
+                    "name": "a",
+                    "position": [
+                        1,
+                        1
+                    ]
+                },
+                {
+                    "name": "b",
+                    "position": [
+                        3,
+                        1
+                    ]
+                },
+                {
+                    "name": "z",
+                    "position": [
+                        3,
+                        6
+                    ]
+                }
+            ]
         },
         {
             "name": "NOT",
             "verilog_module": "not",
-            "price": 2
+            "price": 2,
+            "pins": [
+                {
+                    "name": "a",
+                    "position": [
+                        1,
+                        1
+                    ]
+                },
+                {
+                    "name": "z",
+                    "position": [
+                        3,
+                        6
+                    ]
+                }
+            ]
         }
     ]
 }
