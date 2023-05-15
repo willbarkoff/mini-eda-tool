@@ -2,14 +2,24 @@ import json
 import lexparse
 import eda_tree
 import logging
+import copy
+
+
+class Pin:
+    def __init__(self, x: int, y: int, name: str):
+        self.x = x
+        self.y = y
+        self.name = name
 
 
 class StandardCell:
-    def __init__(self, name: str, tree: eda_tree.EDANode, inputs: list[str], price: int, dump_mermaid=False):
+    def __init__(self, name: str, tree: eda_tree.EDANode, inputs: list[str], pins: list[Pin], price: int, dump_mermaid=False):
         self.name = name
         self.inputs = inputs
         self.price = price
         self.behavior = eda_tree.NodeBehavior(name, len(inputs), tree.simulate)
+        self.pins = pins
+        self.output_pin = [p for p in pins if not p.name in inputs][0]
 
         if dump_mermaid:
             file = f"mermaid/stdcell-{name}.mmd"
@@ -68,10 +78,16 @@ class Technology:
             logging.debug(
                 f"Matched stdcell {stdcell['name']} -> {self.verilog}:{spec.name}")
 
+            pins: list[Pin] = []
+            for pin in stdcell["pins"]:
+                pins.append(
+                    Pin(pin["position"][0], pin["position"][1], pin["name"]))
+
             self.cells.append(StandardCell(
                 stdcell["name"],
                 spec.eda_tree,
                 spec.inputs,
+                pins,
                 stdcell["price"],
                 dump_mermaid=dump_stdcell_mermaid))
 
