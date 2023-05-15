@@ -3,6 +3,17 @@ import argparse
 import technology
 import logging
 
+step = 1
+
+
+def log_step(name):
+    global step
+    logging.debug("\n--------------------------------------------")
+    logging.debug(f"{step}. {name}")
+    logging.debug("--------------------------------------------")
+    step += 1
+
+
 parser = argparse.ArgumentParser(
     prog="edatool.py",
     description="edatool.py is a simple EDA tool for generating standard-cell based designs implemented in Python.",
@@ -22,30 +33,34 @@ logging.basicConfig(format='%(message)s',
                     level=logging.DEBUG if args.verbose else logging.INFO)
 
 # First, we parse the standard cell library
-logging.debug("--------------------------------------------")
-logging.debug("Parsing standard cell library")
-logging.debug("--------------------------------------------")
+log_step("Parsing standard cell library")
 
 std_cells = technology.Technology(
     args.standard_cells, dump_mermaid=args.mermaid)
+logging.info(f"Success!")
 
-logging.debug("--------------------------------------------")
-logging.debug("Parsing the verilog input")
-logging.debug("--------------------------------------------")
+log_step("Parsing the verilog input")
 
 verilog_ast = lexparse.lexparse(args.filename)[0]
+logging.info(f"Success!")
 if args.mermaid:
     file = f"mermaid/{verilog_ast.name}-ast.mmd"
     logging.info(f"Writing file {file}")
     verilog_ast.eda_tree.dump_mermaid(open(file, "w"))
 
+log_step("Cannonicalizing design")
+
 cannonicalized = verilog_ast.eda_tree.cannonicalize()
+logging.info(f"Success!")
 if args.mermaid:
     file = f"mermaid/{verilog_ast.name}-cannonicalized.mmd"
     logging.info(f"Writing file {file}")
     verilog_ast.eda_tree.dump_mermaid(open(file, "w"))
 
+log_step("Simplifying logic")
+
 simplified = verilog_ast.eda_tree.simplify()
+logging.info(f"Success!")
 if args.mermaid:
     file = f"mermaid/{verilog_ast.name}-simplified.mmd"
     logging.info(f"Writing file {file}")
