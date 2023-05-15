@@ -3,3 +3,4 @@ test.v
 __pycache__
 *.tree
 mermaid/*
+chip.json

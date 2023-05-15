@@ -2,6 +2,7 @@ import lexparse
 import argparse
 import technology
 import logging
+import chip
 
 step = 1
 
@@ -29,10 +30,17 @@ parser.add_argument('-m', '--mermaid', action="store_true",
 parser.add_argument('-v', '--verbose', action="store_true",
                     help="Whether to include verbose information.")
 
+parser.add_argument('-w', '--width', type=int,
+                    help="Width of the chip.", default=40)
+parser.add_argument('-l', '--height', type=int,
+                    help="Height of the chip.", default=40)
+
 args = parser.parse_args()
 
 logging.basicConfig(format='%(message)s',
                     level=logging.DEBUG if args.verbose else logging.INFO)
+
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 
 # First, we parse the standard cell library
 log_step("Parsing standard cell library")
@@ -78,6 +86,16 @@ if args.mermaid:
 
 log_step("Placing standard cells")
 
-log_step("Placing wires & vias")
+c = chip.Chip(args.width, args.height, verilog_ast.inputs, verilog_ast.outputs)
+c.add_tree(mapped)
+if args.mermaid:
+    file = f"mermaid/chip-placement.png"
+    logging.info(f"Writing file {file}")
+    c.dump_image(file)
+c.dump_json("chip.json")
 
-log_step("GDS merge")
+log_step("Routing chip")
+if args.mermaid:
+    file = f"mermaid/chip-routed.png"
+    logging.info(f"Writing file {file}")
+    c.dump_image(file)
