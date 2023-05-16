@@ -73,6 +73,8 @@ class Technology:
         modules = lexparse.lexparse(self.verilog)
 
         for stdcell in json_spec["cells"]:
+            logging.debug(
+                f"Finding cell {stdcell['name']} (verilog {self.verilog}:{stdcell['verilog_module']})")
             spec = next(cell for cell in modules if cell.name ==
                         stdcell["verilog_module"])
             logging.debug(
