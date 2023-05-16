@@ -6,6 +6,7 @@ from matplotlib.path import Path
 import matplotlib.patches as patches
 import jsonpickle
 import copy
+import logging
 
 from eda_tree import EDANode
 from technology import Technology
@@ -20,7 +21,6 @@ def __print_arr__(arr):
 
 def __find_min_neighbor__(arr: list[list[int]], i: int, j: int):
     minimum = -1
-    the_case = 0
     neighbor = (-1, -1)
 
     if i+1 < len(arr) and arr[i+1][j] > 0 and (arr[i+1][j] < minimum or minimum == -1):
@@ -55,24 +55,11 @@ class ChipCell():
         self.id = id
 
 
-class ChipWire():
-    def __init__(self, x0: int, y0: int, x1: int, y1: int, track: int):
-        if x0 != x1 and y0 != y1:
-            raise Exception(
-                "Attempted to create a wire that was not vertical or horizontal")
-
-        self.x0 = x0
-        self.y0 = y0
-        self.x1 = x1
-        self.y1 = y1
-
-
 class Chip():
     def __init__(self, width, height, inputs, outputs):
         self.width = width
         self.height = height
         self.cells: list[ChipCell] = []
-        self.wires: list[ChipWire] = []
 
         # -1 is an unroutable obstacle (aka pin)
         self.obstacles = [[0] * width for _ in range(height)]
@@ -82,6 +69,8 @@ class Chip():
 
         self.cell_x0 = PIN_SIZE[0]
         self.cell_y0 = PIN_SIZE[1] * 2
+
+        self.dropped_routes = 0
 
         for pin in inputs:
             self.cells.append(ChipCell(
@@ -108,6 +97,10 @@ class Chip():
                          self.pin_y0 + PIN_SIZE[1]),
                 "pin",
                 "Output_" + pin))
+
+            for i in range(int(self.pin_x0), int(self.pin_x0 + PIN_SIZE[0])):
+                for j in range(int(self.pin_y0), int(self.pin_y0 + PIN_SIZE[1])):
+                    self.obstacles[i][j] = -1
 
             self.pin_x0 += PIN_SIZE[0] * 2
 
@@ -194,39 +187,62 @@ class Chip():
 
         plt.savefig(path)
 
-    def route(self, tree: EDANode, tech: Technology, route_to: None | tuple[int, int] = None, obs_map=None | list[list[int]]):
+    def route(self, tree: EDANode, tech: Technology, route_to: None | tuple[int, int] = None):
         if route_to == None:
             output_cell = [
-                cell for cell in self.cells if cell.id.startswith("Input_")][0]
+                cell for cell in self.cells if cell.id.startswith("Output_")][0]
 
             self.route(
                 tree,
                 tech,
                 route_to=(int(output_cell.position.x0),
-                          int(output_cell.position.y0)),
-                obs_map=copy.deepcopy(self.obstacles))
+                          int(output_cell.position.y1 - 1)))
+
+            logging.info(
+                f"Routing complete. Dropped {self.dropped_routes} routes."
+            )
             return
 
-        std_cell = [cell for cell in tech.cells if cell.name ==
-                    tree.behavior.name][0]
+        obs_map = copy.deepcopy(self.obstacles)
 
-        pos_data = [c for c in self.cells if c.id == tree.uuid.hex][0].position
+        std_cell = None
+        pos_data = None
+        (start_x, start_y) = (-1, -1)
+        if tree.behavior.name != "Input":
+            std_cell = [cell for cell in tech.cells if cell.name ==
+                        tree.behavior.name][0]
 
-        (start_x, start_y) = (pos_data.x0 + std_cell.output_pin.x,
-                              pos_data.y0 + std_cell.output_pin.y)
+            pos_data = [c for c in self.cells if c.id ==
+                        tree.uuid.hex][0].position
+
+            (start_x, start_y) = (int(pos_data.x0 + std_cell.output_pin.x),
+                                  int(pos_data.y0 + std_cell.output_pin.y))
+        else:
+            position = [
+                c for c in self.cells if c.id == "Input_" + tree.children[0]
+            ][0].position
+            (start_x, start_y) = (int(position.x0), int(position.y1 - 1))
 
         obs_map[start_x][start_y] = 1
 
+        iteration = 0
+        routing_failed = False
+
         # ripple out
-        while obs_map[route_to[0]][route_to[1]] < 1:
+        while not routing_failed and obs_map[route_to[0]][route_to[1]] < 1:
+            iteration += 1
+            if iteration > self.height * self.width:
+                # We have literally tried ev erything
+                logging.error(
+                    "Could not route. Voiding attempt, dropping route")
+                routing_failed = True
+                self.dropped_routes += 1
+
             for i in range(0, len(obs_map)):
                 for j in range(0, len(obs_map[0])):
                     if obs_map[i][j] == 0 or (i, j) == (route_to[0], route_to[1]):
                         if (i, j) == (route_to[0], route_to[1]):
-                            print("HERE")
                             (x, y) = __find_min_neighbor__(obs_map, i, j)
-                            print(x, y, obs_map[x][y])
-                            __print_arr__(obs_map)
                         (x, y) = __find_min_neighbor__(obs_map, i, j)
                         if x >= 0 and y >= 0 and obs_map[x][y] > 0:
                             obs_map[i][j] = obs_map[x][y] + 1
@@ -234,12 +250,19 @@ class Chip():
         current_x, current_y = (route_to[0], route_to[1])
 
         # backtrack
-        while (current_x, current_y) != (start_x, start_y):
-            print("Going from", current_x, current_y,
-                  obs_map[current_x][current_y], "to", start_x, start_y)
+        while (current_x, current_y) != (start_x, start_y) and not routing_failed:
             self.obstacles[current_x][current_y] = -2
             (current_x, current_y) = __find_min_neighbor__(
                 obs_map, current_x, current_y)
+
+        self.obstacles[start_x][start_y] = -1
+        self.obstacles[route_to[0]][route_to[1]] = -1
+
+        if tree.behavior.name != "Input":
+            for i in range(len(tree.children)):
+                pin = (pos_data.x0 + std_cell.pins[i].x,
+                       pos_data.y0 + std_cell.pins[i].y)
+                self.route(tree.children[i], tech, route_to=pin)
 
     def dump_json(self, file: str):
         with open(file, "w") as f:
