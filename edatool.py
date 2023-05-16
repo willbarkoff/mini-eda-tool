@@ -3,6 +3,7 @@ import argparse
 import technology
 import logging
 import chip
+import os
 
 step = 1
 
@@ -41,6 +42,10 @@ logging.basicConfig(format='%(message)s',
                     level=logging.DEBUG if args.verbose else logging.INFO)
 
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+
+if args.mermaid:
+    if not os.path.exists("mermaid"):
+        os.makedirs("mermaid")
 
 # First, we parse the standard cell library
 log_step("Parsing standard cell library")

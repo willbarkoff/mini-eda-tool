@@ -4,3 +4,4 @@ __pycache__
 *.tree
 mermaid/*
 chip.json
+venv/
